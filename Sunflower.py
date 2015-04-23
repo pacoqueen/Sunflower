@@ -24,7 +24,12 @@ import subprocess
 
 search_paths = os.environ["PATH"].split(os.pathsep)
 interpreter_list = ('python2.9', 'python2.8', 'python2.7', 'python2.6')
-application_file = os.path.join(os.path.dirname(sys.argv[0]), 'application', 'main.py')
+if not os.path.islink(__file__):
+    sf_file = sys.argv[0]
+else:
+    sf_file = os.path.realpath(sys.argv[0]) 
+application_file = os.path.join(os.path.dirname(sf_file),
+                                'application', 'main.py')
 
 def _can_execute(path):
 	"""Check if specified path can be executed"""
