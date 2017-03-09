@@ -30,7 +30,7 @@ class ZipProvider(Provider):
 		icon_manager = self._parent._parent.icon_manager
 		self._protocol_icon = icon_manager.get_icon_for_file(path)
 
-	def _real_path(self, path, relative_to=None):
+	def real_path(self, path, relative_to=None):
 		"""Commonly used function to get real path"""
 		result = path if relative_to is None else os.path.join(relative_to, path)
 
@@ -71,6 +71,9 @@ class ZipProvider(Provider):
 					type = file_type
 				)
 
+			if key_name not in self._cache:
+				self._cache[key_name] = []
+
 			self._cache[key_name].append((file_name, file_info))
 			self._file_list.append(info.filename)
 
@@ -86,12 +89,12 @@ class ZipProvider(Provider):
 
 	def is_file(self, path, relative_to=None):
 		"""Test if given path is file"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		return real_path in self._file_list and real_path not in self._cache
 
 	def is_dir(self, path, relative_to=None):
 		"""Test if given path is directory"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		return real_path in self._cache
 
 	def is_link(self, path, relative_to=None):
@@ -100,7 +103,7 @@ class ZipProvider(Provider):
 
 	def exists(self, path, relative_to=None):
 		"""Test if given path exists"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		return real_path in self._cache or real_path == ''
 
 	def remove_directory(self, path, recursive, relative_to=None):
@@ -122,7 +125,7 @@ class ZipProvider(Provider):
 	def get_file_handle(self, path, mode, relative_to=None):
 		"""Open path in specified mode and return its handle"""
 		result = None
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 
 		if mode is Mode.READ:
 			result = self._zip_file.open(real_path, 'r')
@@ -144,7 +147,7 @@ class ZipProvider(Provider):
 
 		"""
 		result = None
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		key_name, file_name = os.path.split(real_path)
 
 		if key_name in self._cache:
@@ -206,13 +209,17 @@ class ZipProvider(Provider):
 		"""Set timestamp for specified path"""
 		pass
 
+	def move_path(self, source, destination, relative_to=None):
+		"""Move path on same file system to a different parent node """
+		pass
+
 	def rename_path(self, source, destination, relative_to=None):
 		"""Rename file/directory within parents path"""
 		pass
 
 	def list_dir(self, path, relative_to=None):
 		"""Get directory list."""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 
 		# update file cache
 		if len(self._cache) == 0:

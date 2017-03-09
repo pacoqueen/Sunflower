@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os
+import chardet
+import codecs
 import gtk
 import pango
 import gobject
@@ -23,6 +25,7 @@ class Viewer:
 		self._parent = parent
 		self._application = self._parent._parent
 		self._page_count = 0
+		self._options = self._application.options.section('viewer')
 
 		associations_manager = self._application.associations_manager
 		self._mime_type = associations_manager.get_mime_type(path)
@@ -53,6 +56,9 @@ class Viewer:
 
 		self._notebook = gtk.Notebook()
 		self._notebook.set_border_width(2)
+
+		# create extensions
+		self._create_extensions()
 
 		# create page for executables
 		if self._mime_type in ('application/x-executable', 'application/x-sharedlib') \
@@ -115,9 +121,6 @@ class Viewer:
 			container.add(viewport)
 			self._insert_page(_('Image'), container)
 
-		# create extensions
-		self._create_extensions()
-
 		# pack user interface
 		vbox.pack_start(self._notebook, True, True, 0)
 		vbox.pack_start(self.status_bar, False, False, 0)
@@ -169,7 +172,6 @@ class Viewer:
 	def _create_text_page(self, title, content, position=0):
 		"""Create text page with specified data"""
 		container = gtk.ScrolledWindow()
-		container.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 		container.set_shadow_type(gtk.SHADOW_IN)
 		container.set_border_width(5)
 
@@ -178,6 +180,18 @@ class Viewer:
 		text_view.set_editable(False)
 		text_view.set_cursor_visible(True)
 		text_view.modify_font(font)
+
+		if self._options.get('word_wrap'):
+			container.set_policy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
+			text_view.set_wrap_mode(gtk.WRAP_WORD)
+
+		else:
+			container.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+
+		# try to detect file character encoding and convert to Unicode
+		encoding = chardet.detect(content)['encoding']
+		if encoding is not None:
+			content = codecs.decode(content, encoding)
 
 		text_view.get_buffer().set_text(content)
 

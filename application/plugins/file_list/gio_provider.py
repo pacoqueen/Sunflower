@@ -16,7 +16,7 @@ class GioProvider(Provider):
 	def is_file(self, path, relative_to=None):
 		"""Test if given path is file"""
 		result = False
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 
 		try:
 			info = gio.File(real_path).query_info('standard::type')
@@ -29,7 +29,7 @@ class GioProvider(Provider):
 	def is_dir(self, path, relative_to=None):
 		"""Test if given path is directory"""
 		result = False
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 
 		try:
 			info = gio.File(real_path).query_info('standard::type')
@@ -41,14 +41,14 @@ class GioProvider(Provider):
 
 	def is_link(self, path, relative_to=None):
 		"""Test if given path is a link"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		info = gio.File(real_path).query_info('standard::type')
 
 		return info.get_file_type() == gio.FILE_TYPE_SYMBOLIC_LINK
 
 	def exists(self, path, relative_to=None):
 		"""Test if given path exists"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		return gio.File(real_path).query_exists()
 
 	def unlink(self, path, relative_to=None):
@@ -57,7 +57,7 @@ class GioProvider(Provider):
 
 	def remove_directory(self, path, relative_to=None):
 		"""Remove directory and optionally its contents"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		file_list = []
 		to_scan = []
 
@@ -66,6 +66,7 @@ class GioProvider(Provider):
 		to_scan.append(real_path)
 
 		# traverse through directories
+		# TODO: Check if this is really necessary. Recursive removal seems to be automatic.
 		while len(to_scan) > 0:
 			current_path = to_scan.pop(0)
 			info_list = gio.File(current_path).enumerate_children('standard::name,standard::type')
@@ -90,12 +91,12 @@ class GioProvider(Provider):
 
 	def remove_file(self, path, relative_to=None):
 		"""Remove file"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		gio.File(real_path).delete()
 
 	def create_file(self, path, mode=None, relative_to=None):
 		"""Create empty file with specified mode set"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		gio.File(real_path).create()
 
 		if Support.SET_ACCESS in self.get_support():
@@ -103,7 +104,7 @@ class GioProvider(Provider):
 
 	def create_directory(self, path, mode=None, relative_to=None):
 		"""Create directory with specified mode set"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		gio.File(real_path).make_directory_with_parents()
 
 		if Support.SET_ACCESS in self.get_support():
@@ -111,12 +112,12 @@ class GioProvider(Provider):
 
 	def get_file_handle(self, path, mode, relative_to=None):
 		"""Open path in specified mode and return its handle"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		return File(real_path, mode)
 
 	def get_stat(self, path, relative_to=None, extended=False, follow=False):
 		"""Return file statistics"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 
 		try:
 			# try getting file stats
@@ -206,7 +207,7 @@ class GioProvider(Provider):
 
 	def set_mode(self, path, mode, relative_to=None):
 		"""Set access mode to specified path"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		gio.File(real_path).set_attribute(
 					gio.FILE_ATTRIBUTE_UNIX_MODE,
 					gio.FILE_ATTRIBUTE_TYPE_UINT32,
@@ -215,7 +216,7 @@ class GioProvider(Provider):
 
 	def set_owner(self, path, owner=-1, group=-1, relative_to=None):
 		"""Set owner and/or group for specified path"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		temp = gio.File(real_path)
 		temp.set_attribute(
 					gio.FILE_ATTRIBUTE_UNIX_UID,
@@ -230,7 +231,7 @@ class GioProvider(Provider):
 
 	def set_timestamp(self, path, access=None, modify=None, change=None, relative_to=None):
 		"""Set timestamp for specified path"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		temp = gio.File(real_path)
 
 		if access is not None:
@@ -254,14 +255,19 @@ class GioProvider(Provider):
 					long(change)
 				)
 
+	def move_path(self, source, destination, relative_to=None):
+		"""Move path on same file system to a different parent node """
+		real_source = self.real_path(source, relative_to)
+		gio.File(real_source).move(gio.File(destination))
+
 	def rename_path(self, source, destination, relative_to=None):
 		"""Rename file/directory within parents path"""
-		real_source = self._real_path(source, relative_to)
+		real_source = self.real_path(source, relative_to)
 		gio.File(real_source).set_display_name(destination)
 
 	def list_dir(self, path, relative_to=None):
 		"""Get directory list"""
-		real_path = self._real_path(path, relative_to)
+		real_path = self.real_path(path, relative_to)
 		directory = gio.File(real_path)
 		result = []
 
@@ -404,6 +410,11 @@ class TrashProvider(GioProvider):
 	is_local = True
 	protocol = 'trash'
 
+	def remove_directory(self, path, relative_to=None):
+		"""Remove directory and optionally its contents"""
+		real_path = self.real_path(path, relative_to)
+		gio.File(real_path).delete()
+
 	def get_protocol_icon(self):
 		"""Return protocol icon name"""
 		return 'user-trash'
@@ -445,3 +456,60 @@ class DavsProvider(GioProvider):
 		return (
 			Support.SYSTEM_SIZE,
 		)
+
+
+class Gphoto2Provider(GioProvider):
+	is_local = True
+	protocol = 'gphoto2'
+
+	def get_protocol_icon(self):
+		"""Return protocol icon name"""
+		return 'camera-photo'
+
+	def get_support(self):
+		"""Return supported options by provider"""
+		return ()
+
+
+class MtpProvider(GioProvider):
+	is_local = True
+	protocol = 'mtp'
+
+	def get_protocol_icon(self):
+		"""Return protocol icon name"""
+		return 'multimedia-player'
+
+	def get_support(self):
+		"""Return supported options by provider"""
+		return ()
+
+
+class ArchiveProvider(GioProvider):
+	is_local = True
+	protocol = 'archive'
+
+	def get_protocol_icon(self):
+		"""Return protocol icon name"""
+		return 'drive-removable-media'
+
+	def get_support(self):
+		"""Return supported options by provider"""
+		return ()
+
+	def get_root_path(self, path):
+		"""Get root for specified path"""
+		result = None
+
+		# try to get mount
+		mount = gio.File(path).find_enclosing_mount()
+
+		# get root directory from mount
+		if mount is not None:
+			result = mount.get_root().get_uri()
+
+		# remove trailing slash
+		if result[-1] == os.path.sep:
+			result = result[:-1]
+
+		return result
+
